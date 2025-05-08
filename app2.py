@@ -1,0 +1,325 @@
+import tkinter as tk
+from tkinter import messagebox 
+import random
+import math
+import json
+import os
+import sys
+
+# -------------------------------
+# Persistent User Database
+# -------------------------------
+db_file = "users_db.json"
+
+def load_users():
+    if os.path.exists(db_file):
+        with open(db_file, "r") as file:
+            return json.load(file)
+    else:
+        return {"sober": "todini20"}  # default user
+
+def save_users():
+    with open(db_file, "w") as file:
+        json.dump(users_db, file)
+
+users_db = load_users()
+
+# -------------------------------
+# Globals
+# -------------------------------
+logged_in_user = None
+quiz_score = 0
+asked_questions = []
+
+# -------------------------------
+# Welcome Screen (Professional Glitchy Style)
+# -------------------------------
+def show_welcome_screen():
+    welcome = tk.Tk()
+    welcome.title("🎉 Welcome to the AC/DC Learning App")
+    welcome.geometry("520x320")
+    welcome.config(bg="#1e272e")  # Dark background for contrast
+
+    header_font = ("Lucida Console", 20, "bold")
+    body_font = ("Consolas", 11)
+
+    glitch_colors = ["#00cec9", "#ff7675", "#74b9ff", "#ffeaa7"]
+
+    def animate_glitch(idx=0):
+        label_title.config(fg=glitch_colors[idx])
+        next_idx = (idx + 1) % len(glitch_colors)
+        welcome.after(300, animate_glitch, next_idx)
+
+    label_title = tk.Label(
+        welcome,
+        text="⚡🎸 AC/DC Simplified Odds 🎸⚡",
+        font=header_font,
+        bg="#1e272e"
+    )
+    label_title.pack(pady=25)
+    animate_glitch()
+
+    tk.Label(
+        welcome,
+        text="✨ This fun app will electrify your brain with AC/DC knowledge! ✨",
+        font=body_font,
+        wraplength=460,
+        justify="center",
+        bg="#1e272e",
+        fg="#dfe6e9"
+    ).pack(pady=10)
+
+    get_started_btn = tk.Button(
+        welcome,
+        text="🚀 Let's Rock 'n' Learn!",
+        font=("Segoe UI", 12, "bold"),
+        bg="#6c5ce7",
+        fg="white",
+        activebackground="#341f97",
+        activeforeground="white",
+        width=20,
+        relief="raised",
+        bd=3,
+        cursor="hand2",
+        command=lambda: [welcome.destroy(), show_login_screen()]
+    )
+    get_started_btn.pack(pady=25)
+
+    welcome.mainloop()
+
+# -------------------------------
+# Login / Sign Up Screen
+# -------------------------------
+def show_login_screen():
+    global login_window, username_var, password_var
+
+    login_window = tk.Tk()
+    login_window.title("🔐 Welcome to AC/DC Learning App")
+    login_window.geometry("400x300")
+    login_window.config(bg="#e6f2ff")
+
+    tk.Label(login_window, text="🔌 Dzidza Magetsi naDECENT", font=("Helvetica", 18, "bold"), bg="#e6f2ff").pack(pady=10)
+    tk.Label(login_window, text="Username:", font=("Arial", 12), bg="#e6f2ff").pack(pady=5)
+    username_var = tk.StringVar()
+    tk.Entry(login_window, textvariable=username_var, font=("Arial", 12)).pack()
+
+    tk.Label(login_window, text="Password:", font=("Arial", 12), bg="#e6f2ff").pack(pady=5)
+    password_var = tk.StringVar()
+    tk.Entry(login_window, textvariable=password_var, font=("Arial", 12), show="*").pack()
+
+    tk.Button(login_window, text="🔓 Login", command=login, bg="#3498db", fg="white", font=("Arial", 11, "bold"), width=10).pack(pady=10)
+    tk.Button(login_window, text="🆕 Sign Up", command=signup, bg="#2ecc71", fg="white", font=("Arial", 11, "bold"), width=10).pack()
+
+    login_window.mainloop()
+
+def open_main_app():
+    global logged_in_user
+    login_window.destroy()
+    main_app()
+
+def login():
+    global logged_in_user
+    username = username_var.get()
+    password = password_var.get()
+    if username in users_db and users_db[username] == password:
+        logged_in_user = username
+        messagebox.showinfo("✅ Login Successful", f"Welcome back, {username}!")
+        open_main_app()
+    else:
+        messagebox.showerror("❌ Login Failed", "Invalid username or password.")
+
+def signup():
+    username = username_var.get()
+    password = password_var.get()
+    if username in users_db:
+        messagebox.showerror("❌ Signup Failed", "Username already exists. Please choose another.")
+    elif username == "" or password == "":
+        messagebox.showerror("❌ Signup Failed", "Please enter both username and password.")
+    else:
+        users_db[username] = password
+        save_users()
+        messagebox.showinfo("✅ Signup Successful", "Account created! You can now log in.")
+        login()
+
+# -------------------------------
+# Main App
+# -------------------------------
+def main_app():
+    global quiz_score, asked_questions
+    quiz_score = 0
+    asked_questions = []
+
+    ac_text = (
+        "⚡ Alternating Current (AC):\n"
+        "- Flows back and forth periodically.\n"
+        "- Commonly used in homes, industries, etc.\n"
+        "- Easier for long-distance transmission.\n"
+        "- Generated by alternators.\n"
+        "- Invented by Nikola Tesla.\n"
+    )
+
+    dc_text =   (
+        "🔋 Direct Current (DC):\n"
+        "- Flows only in one direction.\n"
+        "- Found in batteries, smartphones, EVs.\n"
+        "- Good for short distances.\n"
+        "- Produced by batteries and rectifiers.\n"
+        "- Promoted by Thomas Edison.\n"
+    )
+
+    difference_text = {
+        "Direction of Flow": {"AC": "Changes periodically", "DC": "Flows in one direction"},
+        "Generation": {"AC": "Generated by alternators", "DC": "Produced by batteries or rectifiers"},
+        "Waveform": {"AC": "Sinusoidal", "DC": "Straight-line"},
+        "Frequency": {"AC": "Has frequency (50Hz or 60Hz)", "DC": "Zero frequency"},
+        "Transmission Distance": {"AC": "Efficient over long distances", "DC": "Loses power over distance"},
+    }
+
+    quiz_data = [
+        {
+            "question": "Which of the following is TRUE about Direct Current (DC)?",
+            "options": ["A. It changes direction frequently.", "B. It's used in the power grid.", "C. It flows in one direction.", "D. It was invented by Nikola Tesla."],
+            "answer": "C"
+        },
+        {
+            "question": "What is a major advantage of AC over DC?",
+            "options": ["A. Safer for devices.", "B. Can travel long distances easily.", "C. Requires fewer components.", "D. Invented by Thomas Edison."],
+            "answer": "B"
+        },
+        {
+            "question": "Who is known for inventing AC?",
+            "options": ["A. Thomas Edison", "B. Albert Einstein", "C. Nikola Tesla", "D. Michael Faraday"],
+            "answer": "C"
+        },
+        {
+            "question": "Which is commonly used in batteries?",
+            "options": ["A. AC", "B. DC", "C. Both", "D. None"],
+            "answer": "B"
+        }
+    ]
+
+    root = tk.Tk()
+    root.title("⚡ AC vs DC - Learning App")
+    root.geometry("700x750")
+    root.config(bg="#e6f2ff")
+
+    def logout():
+        root.destroy()
+        os.execl(sys.executable, sys.executable, *sys.argv)
+
+    title_frame = tk.Frame(root, bg="#004d66", pady=10)
+    title_frame.pack(fill="x")
+
+    title_label = tk.Label(
+        title_frame,
+        text=f"⚡ AC vs DC - Welcome, {logged_in_user}!",
+        font=("Helvetica", 22, "bold"),
+        bg="#004d66",
+        fg="white"
+    )
+    title_label.pack()
+
+    canvas = tk.Canvas(root, width=700, height=100, bg="#e6f2ff", highlightthickness=0)
+    canvas.pack()
+    for x in range(0, 700):
+        y = 40 + 30 * (0.5 * (1 + math.sin(x * 0.05)))
+        canvas.create_oval(x, y, x+2, y+2, fill="#0066cc", outline="#0066cc")
+    canvas.create_line(0, 70, 700, 70, fill="#cc0000", width=2)
+
+    output = tk.Text(root, height=18, width=80, wrap=tk.WORD,
+                     font=("Arial", 11), bd=4, relief=tk.GROOVE, bg="white", fg="#333333")
+    output.pack(pady=10)
+
+    def show_ac():
+        output.delete("1.0", tk.END)
+        output.insert(tk.END, ac_text)
+
+    def show_dc():
+        output.delete("1.0", tk.END)
+        output.insert(tk.END, dc_text)
+
+    def show_difference():
+        output.delete("1.0", tk.END)
+        formatted_text = "🔍 Differences Between AC and DC:\n\n"
+        for topic, values in difference_text.items():
+            formatted_text += f"• {topic}\n   - AC: {values['AC']}\n   - DC: {values['DC']}\n\n"
+        output.insert(tk.END, formatted_text)
+
+    def take_quiz():
+        global quiz_score
+        if len(asked_questions) == len(quiz_data):
+            messagebox.showinfo("✅ Quiz Completed", f"You got {quiz_score} out of {len(quiz_data)} correct!")
+            return
+
+        question_data = random.choice([q for i, q in enumerate(quiz_data) if i not in asked_questions])
+        question_index = quiz_data.index(question_data)
+        asked_questions.append(question_index)
+
+        question = question_data["question"]
+        options = question_data["options"]
+        correct = question_data["answer"]
+
+        def check_answer():
+            global quiz_score
+            selected = answer_var.get()
+            if selected == correct:
+                quiz_score += 1
+                messagebox.showinfo("✅ Correct!", "🎉 That's the right answer!")
+            else:
+                messagebox.showerror("❌ Incorrect", f"Try again! Correct answer: {correct}")
+            quiz_window.destroy()
+
+        quiz_window = tk.Toplevel(root)
+        quiz_window.title("🧠 Quick Quiz")
+        quiz_window.geometry("430x300")
+        quiz_window.config(bg="#fff8dc")
+
+        tk.Label(quiz_window, text=question, font=("Arial", 12, "bold"), bg="#fff8dc", wraplength=400).pack(pady=10)
+
+        answer_var = tk.StringVar()
+        for option in options:
+            tk.Radiobutton(
+                quiz_window,
+                text=option,
+                variable=answer_var,
+                value=option[0],
+                bg="#fff8dc",
+                activebackground="#ffe4b5",
+                font=("Arial", 10),
+                selectcolor="#ffefc2"
+            ).pack(anchor="w", padx=20)
+
+        tk.Button(
+            quiz_window, text="✅ Submit", command=check_answer,
+            bg="#ffb84d", fg="black", activebackground="#ff9900",
+            font=("Arial", 10, "bold"), width=10
+        ).pack(pady=10)
+
+    def styled_button(master, text, command, bg_color, hover_color):
+        def on_enter(e): btn.config(bg=hover_color)
+        def on_leave(e): btn.config(bg=bg_color)
+
+        btn = tk.Button(
+            master, text=text, command=command, width=20, pady=8,
+            font=("Arial", 11, "bold"), bg=bg_color, fg="white",
+            bd=0, activebackground=hover_color, cursor="hand2"
+        )
+        btn.bind("<Enter>", on_enter)
+        btn.bind("<Leave>", on_leave)
+        return btn
+
+    button_frame = tk.Frame(root, bg="#e6f2ff")
+    button_frame.pack(pady=10)
+
+    styled_button(button_frame, "📘 Learn AC", show_ac, "#3498db", "#2980b9").grid(row=0, column=0, padx=10, pady=5)
+    styled_button(button_frame, "🔋 Learn DC", show_dc, "#2ecc71", "#27ae60").grid(row=0, column=1, padx=10, pady=5)
+    styled_button(button_frame, "🔍 Compare AC/DC", show_difference, "#e74c3c", "#c0392b").grid(row=1, column=0, padx=10, pady=5)
+    styled_button(button_frame, "🧠 Take Quiz", take_quiz, "#f1c40f", "#f39c12").grid(row=1, column=1, padx=10, pady=5)
+    styled_button(button_frame, "🚪 Logout", logout, "#9b59b6", "#8e44ad").grid(row=2, column=0, columnspan=2, pady=10)
+
+    root.mainloop()
+
+# -------------------------------
+# Start the App
+# -------------------------------
+show_welcome_screen()
